@@ -111,7 +111,77 @@ I also inspected a separate Event 4624 with **Logon Type 5**, `NT AUTHORITY\SYST
 ### Additional Alert Triage
 
 During the investigation, Wazuh also flagged account-discovery commands involving `net.exe` and `net1.exe`. I correlated Sysmon process GUIDs and traced their execution to `wazuh-agent.exe`, running under the local SYSTEM context. I assessed these alerts as **likely benign security-monitoring activity**, rather than evidence of attacker execution. The specific Wazuh module responsible was not independently verified.
+## Investigation Evidence
 
+The following screenshots document the controlled network reconnaissance, SMB authentication attempts, Wazuh detection, and account-lockout investigation conducted in the isolated lab environment.
+
+### Phase 1 — Network Reconnaissance
+
+**Evidence 01 — Nmap TCP SYN Scan**
+
+![Nmap SYN scan showing open Windows ports](screenshots/01-nmap-syn-scan.png)
+
+A TCP SYN scan from Kali Linux (`192.168.74.130`) identified ports **135, 139, and 445** as open on the Windows 11 endpoint (`192.168.74.129`). Port 445 was selected for subsequent SMB authentication testing.
+
+**Evidence 02 — Wireshark TCP SYN Probes**
+
+![Wireshark capture of TCP SYN probes](screenshots/02-wireshark-syn-probes.png)
+
+Wireshark captured TCP SYN packets originating from Kali Linux and targeting multiple ports on the Windows endpoint, supporting the identification of network reconnaissance activity.
+
+**Evidence 03 — Open-Port Verification**
+
+![Wireshark SYN-ACK responses from open ports](screenshots/03-wireshark-open-ports.png)
+
+The Windows endpoint responded with TCP SYN-ACK packets from ports **135, 139, and 445**, providing network-level evidence consistent with the Nmap scan results.
+
+### Phase 2 — SMB Password-Guessing Simulation
+
+**Evidence 04 — SMB Authentication Attempts**
+
+![Kali SMB authentication attempts and account lockout](screenshots/04-smb-authentication-attempts.png)
+
+Repeated SMB authentication attempts targeting `testuser` returned `NT_STATUS_LOGON_FAILURE`, followed by `NT_STATUS_ACCOUNT_LOCKED_OUT`. This demonstrated that the account eventually became locked during the controlled password-guessing simulation.
+
+### Phase 3 — Wazuh Detection and Alert Investigation
+
+**Evidence 05 — Authentication Alert Timeline**
+
+![Wazuh authentication failure and account lockout timeline](screenshots/05-wazuh-authentication-timeline.png)
+
+The targeted Wazuh view contained **12 alert records**: 10 individual failed-logon alerts, one multiple-logon-failure correlation alert, and one account-lockout alert. The correlated alert was treated as a detection generated from repeated activity, not as an additional authentication attempt.
+
+**Evidence 06 — Windows Event ID 4625**
+
+![Windows Event 4625 failed NTLM network authentication](screenshots/06-windows-failed-logon.png)
+
+Windows Event ID **4625** identified failed NTLM network authentication targeting `testuser`, originating from `192.168.74.130`. Logon Type **3** indicated network authentication, while substatus `0xC000006A` was consistent with an incorrect password.
+
+**Evidence 07 — Wazuh Rule 60122**
+
+![Wazuh rule 60122 failed logon alert](screenshots/07-wazuh-failed-logon-rule.png)
+
+Wazuh Rule **60122**, Level **5**, recorded individual authentication failures. These events provided the underlying evidence for investigating repeated failed access attempts.
+
+### Phase 4 — Brute-Force Correlation and Account Lockout
+
+**Evidence 08 — Wazuh Rule 60204**
+
+![Wazuh rule 60204 multiple Windows logon failures](screenshots/08-wazuh-brute-force-alert.png)
+
+Wazuh generated a Level **10** alert for multiple Windows logon failures. Rule **60204** included a frequency value of **8** and mapped the activity to MITRE ATT&CK **T1110 — Brute Force**.
+
+**Evidence 09 — Windows Event ID 4740**
+
+![Windows Event 4740 account lockout](screenshots/09-windows-account-lockout.png)
+
+Windows Event ID **4740** confirmed that `testuser` was locked out. The event identified `KALI-ATTACKER` as the caller computer, connecting the lockout to the controlled authentication activity.
+
+**Evidence 10 — Wazuh Rule 60115**
+
+![Wazuh rule 60115 account lockout detection](screenshots/10-wazuh-lockout-alert.png)
+
+Wazuh Rule **60115**, Level **9**, generated an account-lockout alert. The rule included MITRE mappings **T1110** and **T1531**. In this investigation, the lockout was assessed as a consequence of repeated failed authentication attempts, not proof that an attacker intentionally removed account access.
 ## MITRE ATT&CK Mapping
 
 | Technique | ID | Evidence and interpretation |
