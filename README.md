@@ -11,7 +11,7 @@ I investigated a controlled attack simulation involving TCP port reconnaissance 
 
 The simulation generated failed NTLM network logons and an account lockout for the local `testuser` account. I found no successful `testuser` logon in the Wazuh alerts or Windows Security logs examined.
 
-**Outcome:** Detected password-guessing behavior and account lockout; no successful account compromise identified in the examined evidence. This conclusion is limited to the telemetry and time windows reviewed.
+**Outcome:** Detected password-guessing behavior and account lockout; no successful account compromise identified in the examined evidence. 
 
 ## Lab Architecture
 
@@ -81,7 +81,7 @@ The investigation identified the following Wazuh rules:
 
 The targeted Wazuh view contained **12 alert records**: 10 individual failed-logon alerts, one multiple-logon-failure correlation alert, and one account-lockout alert. The correlation alert is not an additional independent password attempt; alert count must not be confused with the number of authentication attempts.
 
-Windows Security Event **4740** confirmed that `testuser` was locked. Its event message identified `KALI-ATTACKER` as the caller computer. The subject was the local SYSTEM context (`WIN11-ENDPOINT$`, SID `S-1-5-18`), which is not evidence that the machine account was compromised.
+Windows Security Event **4740** confirmed that `testuser` was locked. Its event message identified `KALI-ATTACKER` as the caller computer. 
 
 #### Reconstructed Timeline
 
@@ -100,17 +100,19 @@ Supporting screenshots appear below (Evidence 05 and 07–10).
 
 ### Phase 4 — Check for Successful Authentication
 
-I searched Wazuh for Event **4624** associated with `testuser`, then examined Windows Security logs directly in Event Viewer. No successful logon for that account was found in the examined records.
+I investigated whether the SMB password-guessing attempts against the local `testuser` account resulted in successful authentication.
 
-I also inspected a separate Event 4624 with **Logon Type 5**, `NT AUTHORITY\SYSTEM`, and `services.exe`. This was consistent with a Windows service logon, **not** evidence of an SMB login by `testuser`.
+A Wazuh Threat Hunting search for Windows Event ID **4624** associated with `testuser` returned no matching results.
 
-**Assessment:** No successful account access was identified in the available evidence. Absence of matching events is not absolute proof that no authentication succeeded outside the collection scope or reviewed time range.
+I also examined four Windows Security Event ID **4624** records in Event Viewer during the attack period. All four were **Logon Type 5 (service logons)**, and none were associated with `testuser`.
 
-**Future evidence:** An original Event 4624 search screenshot may be added as `screenshots/11-successful-logon-search.png`.
+**Analyst Assessment:** No successful authentication involving `testuser` was identified in the reviewed telemetry. The observed activity resulted in repeated failed authentication attempts and a confirmed account lockout, with no evidence of successful account compromise within the investigation scope.
+
+
 
 ### Additional Alert Triage
 
-During the investigation, Wazuh also flagged account-discovery commands involving `net.exe` and `net1.exe`. I correlated Sysmon process GUIDs and traced their execution to `wazuh-agent.exe`, running under the local SYSTEM context. I assessed these alerts as **likely benign security-monitoring activity**, rather than evidence of attacker execution. The specific Wazuh module responsible was not independently verified.
+During the investigation, Wazuh also flagged account-discovery commands involving `net.exe` and `net1.exe`. I correlated Sysmon process GUIDs and traced their execution to `wazuh-agent.exe`, running under the local SYSTEM context. I assessed these alerts as **likely benign security-monitoring activity**, rather than evidence of attacker execution. 
 
 ## Investigation Evidence
 
