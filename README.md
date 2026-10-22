@@ -199,7 +199,7 @@ Wazuh also mapped the lockout to **T1531 — Account Access Removal**. In this l
 
 **Illustrative severity: Medium.** The activity involved repeated password guessing and a confirmed account lockout, without identified successful access. A production SOC would apply its own severity matrix and consider privileged-account exposure, asset criticality, operational impact, and breadth of targeting.
 
-**Observed impact:** `testuser` was locked out. No confirmed lateral movement, attacker-controlled process execution, or data exfiltration was found in the reviewed evidence. This is not a claim that every possible telemetry source was exhaustively examined.
+**Observed impact:** `testuser` was locked out. No confirmed lateral movement, attacker-controlled process execution, or data exfiltration was found in the reviewed evidence. 
 
 ## Recommended Defensive Actions
 
